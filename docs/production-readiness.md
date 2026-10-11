@@ -1,0 +1,19 @@
+# Remaining identified production-readiness gaps
+
+The four requested capabilities now have executable implementation paths. They do not establish production readiness by themselves.
+
+1. **Live environment proof:** real model account/model compatibility, GitHub write/read permissions, Jira project fields, OIDC login/logout/JWKS rotation and API audience mapping require configured credentials and live smoke tests. Current provider tests use controlled HTTP transports.
+2. **Durable orchestration:** synchronous request processing has no job queue, restart recovery, cancellation, resumable LangGraph checkpointer, leases or reconciliation UI. A crash can leave running/executing records. Do not replay uncertain external writes automatically.
+3. **Autonomous engineering scope:** no code generation/apply pipeline, repository checkout/branch creation, isolated coding runner, real regression repair, telemetry correlation, real security scanning, deployment or rollback. Draft PR creation only opens a PR between existing branches. The five original scenarios remain fixtures.
+4. **Identity hardening:** no live IdP verification, automated provisioning, session revocation/introspection, token refresh workflow, per-resource scopes, per-tenant role administration or enforced separate-person approval. Browser session storage requires strong XSS/CSP protection. Dedicated API audiences and short token lifetimes are necessary.
+5. **Isolation and credentials:** tenant filtering is application-level; database RLS and tenant-specific credential vaults are absent. One integration tenant per deployment is supported. Secrets management, rotation and outbound network restrictions are deployment responsibilities.
+6. **Resource protection:** no distributed rate limits, per-tenant concurrency/financial quotas, token accounting reconciliation or abuse controls. HTTP timeouts and step/output limits are partial bounds, not hard job deadlines or spend guarantees. API request-size enforcement and rate limiting need an ingress proxy.
+7. **Database operations:** PostgreSQL runtime must be verified in CI/deployment. Baseline v1 migration exists; subsequent upgrade/rollback migrations, separate DB roles, TLS, backups, point-in-time restore, retention/deletion policies and disaster-recovery drills remain.
+8. **External write reliability:** local atomic claiming/idempotency cannot guarantee exactly-once behavior at GitHub/Jira. Reconciliation and provider-specific idempotency mechanisms are needed. Audit rows are mutable by the DB operator, not immutable compliance evidence.
+9. **Observability:** persisted events and usage exist; centralized structured logs, redaction coverage, metrics, distributed tracing, alerting, SLOs and operational dashboards are not integrated.
+10. **Evaluation depth:** tests cover local contracts/security/failure modes. Real task-quality datasets, prompt-injection/red-team evaluation, live E2E/browser accessibility checks, load/soak/failure testing and cost/latency benchmarks remain.
+11. **Supply chain:** dependency locks exist; scheduled vulnerability scans, secret scanning, image digest pinning, signed builds, SBOMs, attestations, license review and automated patch policy remain. The web runtime still includes build/development dependencies.
+12. **Deployment:** no cloud environment, domain/TLS ingress, infrastructure-as-code, autoscaling, HA, deployment approvals, rollback test or production smoke evidence. Local Compose binds app ports to loopback and is a development stack.
+13. **Additional platform features:** MCP, multi-agent coding, policy-as-code, billing and admin management are not implemented. Existing SDD assessment trusts submitted evidence; it is not a trusted execution attestation.
+
+Public source publication and green unit/build checks are not deployment verification or a production certification.
