@@ -1,0 +1,23 @@
+services:
+  api:
+    build: ./apps/api
+    environment:
+      SPECFORGE_API_KEY: ${SPECFORGE_API_KEY:?Set a development API key in .env}
+      CORS_ORIGINS: http://localhost:3000
+    ports:
+      - "127.0.0.1:8000:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 20s
+      timeout: 5s
+      retries: 3
+  web:
+    build: ./apps/web
+    environment:
+      INTERNAL_API_URL: http://api:8000
+      SPECFORGE_API_KEY: ${SPECFORGE_API_KEY:?Set a development API key in .env}
+    ports:
+      - "127.0.0.1:3000:3000"
+    depends_on:
+      api:
+        condition: service_healthy
