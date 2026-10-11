@@ -1,23 +1,56 @@
+x-api-environment: &api-environment
+  DATABASE_URL: postgresql+psycopg://specforge:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@db:5432/specforge
 services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: specforge
+      POSTGRES_DB: specforge
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U specforge -d specforge"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+  migrate:
+    build: ./apps/api
+    env_file: .env
+    environment: *api-environment
+    command: [python, -m, app.migrate]
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
   api:
     build: ./apps/api
-    environment:
-      SPECFORGE_API_KEY: ${SPECFORGE_API_KEY:?Set a development API key in .env}
-      CORS_ORIGINS: http://localhost:3000
+    env_file: .env
+    environment: *api-environment
     ports:
       - "127.0.0.1:8000:8000"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
-      interval: 20s
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 5s
       timeout: 5s
-      retries: 3
+      retries: 12
   web:
     build: ./apps/web
     environment:
       INTERNAL_API_URL: http://api:8000
-      SPECFORGE_API_KEY: ${SPECFORGE_API_KEY:?Set a development API key in .env}
+      SPECFORGE_ENV: ${SPECFORGE_ENV:-development}
+      AUTH_MODE: ${AUTH_MODE:-development}
+      PUBLIC_APP_URL: ${PUBLIC_APP_URL:-http://localhost:3000}
+      OIDC_ISSUER: ${OIDC_ISSUER:-}
+      OIDC_CLIENT_ID: ${OIDC_CLIENT_ID:-}
+      OIDC_SCOPE: ${OIDC_SCOPE:-openid profile}
     ports:
       - "127.0.0.1:3000:3000"
     depends_on:
       api:
         condition: service_healthy
+volumes:
+  postgres_data:

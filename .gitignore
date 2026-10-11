@@ -6,3 +6,6 @@ __pycache__/
 *.pyc
 .venv/
 coverage/
+*.db
+*.db-*
+*.tsbuildinfo
