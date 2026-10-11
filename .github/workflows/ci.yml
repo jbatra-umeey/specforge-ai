@@ -1,0 +1,62 @@
+name: CI
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  api:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install -r apps/api/requirements.lock
+      - run: cd apps/api && python -m pytest -q
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: cd apps/web && npm ci && npm run lint && npm run build
+  containers:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - run: cp .env.example .env
+      - run: docker compose config --quiet
+      - run: docker compose build
+      - run: docker compose up -d --wait --wait-timeout 180
+      - name: Smoke test authenticated frontend and PostgreSQL-backed API
+        run: |
+          python3 - <<'PY'
+          import json, time, urllib.request, urllib.error
+          key='replace-with-a-long-random-development-key'
+          for attempt in range(30):
+              try:
+                  urllib.request.urlopen('http://localhost:3000', timeout=2)
+                  break
+              except OSError:
+                  time.sleep(1)
+          def req(path, data=None, authenticated=True):
+              headers={'Content-Type':'application/json','Idempotency-Key':'ci-smoke-persistence'}
+              if authenticated: headers['X-API-Key']=key
+              r=urllib.request.Request('http://localhost:3000'+path, data=json.dumps(data).encode() if data is not None else None, headers=headers)
+              return json.load(urllib.request.urlopen(r, timeout=30))
+          for demo in ['feature','regression','drift','incident','release']:
+              assert req('/api/demos/'+demo+'/run', {})['status']=='completed'
+          try:
+              req('/api/backend/runs', authenticated=False)
+              raise AssertionError('Anonymous proxy access was permitted')
+          except urllib.error.HTTPError as e:
+              assert e.code==401
+          run=req('/api/backend/runs', {'goal':'Validate database persistence without configured LLM credentials'})
+          assert run['status']=='failed' and 'not configured' in run['result']['error']
+          assert req('/api/backend/runs/'+run['id'])['id']==run['id']
+          PY
+      - if: always()
+        run: docker compose logs --no-color
+      - if: always()
+        run: docker compose down -v
